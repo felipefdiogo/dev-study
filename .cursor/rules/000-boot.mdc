@@ -1,0 +1,11 @@
+---
+description: dev-study boot sequence
+alwaysApply: true
+---
+
+Follow `CLAUDE.md` at the repo root in full. It is the single
+source of truth for this repo's behaviour — boot sequence,
+routing, teaching rules, rails, invariants, and keyword triggers.
+
+Run the boot sequence on my first message of every session,
+regardless of what that message says.

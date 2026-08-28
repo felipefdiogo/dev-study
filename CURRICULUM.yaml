@@ -1,0 +1,619 @@
+meta:
+  version: 1
+  total_estimated_hours: 2800
+  phase_gates_hard: true
+  track_balance_rule: "of last 6 completed nodes, >=1 secondary and >=1 architecture"
+  staleness_force_months: 3
+  current_phase: 1
+  graph_built_through_phase: 1
+
+# ---------------------------------------------------------------
+# Phase 1 primary: full specs. Secondary and architecture: stubs
+# until signed off track-by-track. Do not generate phases 2-6.
+# ---------------------------------------------------------------
+
+nodes:
+  - id: P1-M01
+    title: JavaScript substrate beneath React
+    phase: 1
+    track: primary
+    effort_hours: [25, 40]
+    requires: []
+    unlocks: [P1-M02, P1-M03, P1-M04, P1-M05, P1-M06, P1-M09]
+    entry_criteria:
+      - Can write a React app with hooks unaided
+      - Know what a Promise is (not necessarily microtask ordering)
+    exit_criteria:
+      depth_1_working:
+        - Predict output order correctly on 7/10 fresh event-loop drills
+        - Explain stale closures in terms of scope capture
+      depth_2_solid:
+        - 9/10 drills including 2 involving React batching
+        - Explain where React's scheduler sits in the event loop
+        - Diagram task queue / microtask queue / render frame from memory
+      depth_3_deep:
+        - Explain microtask starvation with a measured reproduction
+        - Read and explain a slice of React's Scheduler source
+    resources:
+      essential:
+        - "Jake Archibald: In The Loop (JSConf talk)"
+        - "HTML spec: event loop processing model"
+      optional:
+        - "JS Visualizer 9000"
+        - "You Don't Know JS: Scope & Closures"
+    breakpoints:
+      - after: "event loop prediction drills"
+        note: "Safe pause. P1-M03 can start from here."
+    review_triggers:
+      - on_complete: [P2-M03, P3-M01]
+        reason: >
+          async/await state machines and goroutines both
+          recontextualise the event loop
+    stuck_fallbacks:
+      - if: "Can't predict microtask ordering after 15 drills"
+        goto: S-99-js-prerequisites
+        note: "Needs scope/hoisting/prototype refresher first"
+    micro_sitting_tasks:
+      - "5 event-loop prediction drills"
+      - "Re-draw the event loop diagram from memory, compare to notes"
+      - "Re-read one failed drill and write why I got it wrong"
+
+  - id: P1-M02
+    title: Build a mini-React
+    phase: 1
+    track: primary
+    effort_hours: [50, 80]
+    requires: [P1-M01@depth_1_working]
+    unlocks: [P1-M03@enriched, P1-M05@enriched]
+    entry_criteria:
+      - Comfortable with recursion and linked lists
+      - Can set up a build tool from scratch
+    exit_criteria:
+      depth_1_working:
+        - Stages 1-5 complete; renders a todo app with keys
+      depth_2_solid:
+        - All 10 stages complete
+        - Explain the rules of hooks purely from implementation
+        - Explain why keys matter without saying "performance"
+      depth_3_deep:
+        - Implement simplified priority lanes
+        - Account for every divergence from real react-reconciler
+    resources:
+      essential:
+        - "Rodrigo Pombo: Build Your Own React"
+        - "react-reconciler source: beginWork, completeWork, commitRoot"
+      optional:
+        - "Lin Clark: A Cartoon Intro to Fiber"
+    breakpoints:
+      - after: "stage 5 (reconciliation and keys)"
+        note: "Natural pause — highest value per hour is behind me"
+    review_triggers:
+      - on_complete: [P1-M05]
+        reason: "lanes only make sense after building the work loop"
+    stuck_fallbacks:
+      - if: "Can't reason about the fiber linked-list traversal"
+        goto: S-99-data-structures
+        note: "Needs trees and linked lists refresher"
+    micro_sitting_tasks:
+      - "Re-read my own reconciler and add explanatory comments"
+      - "Write one failing test for the next stage"
+      - "Diff one of my functions against real React's equivalent"
+
+  - id: P1-M03
+    title: Rendering cost model - measured not folklore
+    phase: 1
+    track: primary
+    effort_hours: [30, 45]
+    requires: [P1-M01@depth_1_working]
+    unlocks: [P1-M08, P1-M04@enriched, P1-M05@enriched]
+    entry_criteria:
+      - Can open React DevTools Profiler and record a commit
+      - Have a non-toy component tree (work app or a throwaway)
+    exit_criteria:
+      depth_1_working:
+        - Produce before/after measurements for one real re-render problem
+        - State a memoization rule derived from those numbers, not from docs
+        - Identify at least one case where memo/useMemo made no difference and say why
+      depth_2_solid:
+        - "Decision flowchart for memo / useMemo / useCallback / context split, with crossover thresholds you measured"
+        - Explain children-as-JSX identity without saying "React is dumb"
+        - "Say what the React Compiler changes about that flowchart (version-dependent — check current compiler behaviour)"
+      depth_3_deep:
+        - "Separate render, commit, layout, and paint in a trace and attribute milliseconds to each"
+        - Explain a bailout in reconciler terms (beginWork / didHooksChange)
+    resources:
+      essential:
+        - React DevTools Profiler
+        - Browser Performance panel (main thread)
+      optional:
+        - "react-reconciler: bailoutOnAlreadyFinishedWork"
+        - React Compiler docs for the installed version
+    breakpoints:
+      - after: "first measured before/after on a real tree"
+        note: "depth_1 is reachable from here in one more sitting"
+    review_triggers:
+      - on_complete: [P1-M08]
+        reason: "load-time vitals will tempt you to ignore runtime render cost again"
+    stuck_fallbacks:
+      - if: "Attributes slowness to 'the virtual DOM' or 'too many components' without a trace"
+        goto: S-99-browser-rendering
+        note: "Mixing up JS time with style/layout/paint; need the browser pipeline first"
+      - if: "Can't explain why a child rendered when props 'look the same'"
+        goto: P1-M01
+        note: "Identity / closure, not a profiler skill issue"
+    micro_sitting_tasks:
+      - "From memory: write the memoization flowchart, then compare to NOTES.md"
+      - "Read one old profiler screenshot (or NOTES numbers) and write what it does *not* prove"
+      - "5 drills: 'new object in props — render or not?' with no code open"
+
+  - id: P1-M04
+    title: State architecture - one app five ways
+    phase: 1
+    track: primary
+    effort_hours: [35, 50]
+    requires: [P1-M01@depth_1_working]
+    unlocks: [P1-M06@enriched, P1-M07@enriched, P1-M09@enriched]
+    entry_criteria:
+      - Can write hooks, lift state, and pass callbacks without a tutorial
+      - Have one small app in mind (todo, issue list, or a slice of work)
+    exit_criteria:
+      depth_1_working:
+        - "Same app implemented three ways (local/lifted, context, external store or server-as-source)"
+        - "Written rule for where each piece of state lives, including one piece you originally put in the wrong place"
+        - Can explain a stale-UI bug in one of the three as a subscription/identity problem
+      depth_2_solid:
+        - "Five ways: local, lifted, context, external store, URL or server cache"
+        - Re-render blast radius compared with the profiler (P1-M03 enriches this)
+        - "Derived vs stored: at least one value you stopped storing"
+      depth_3_deep:
+        - Undo/replay or time-travel on one implementation
+        - "Sync constraints: what happens if two tabs or a slow POST race"
+    resources:
+      essential:
+        - "useSyncExternalStore docs (and the tearing note)"
+        - One server-state library you already touch at work, read as a cache not a store
+      optional:
+        - Redux (or equivalent) source for subscription, not the tutorial
+    breakpoints:
+      - after: "three implementations and the placement rule"
+        note: "depth_1. Remaining two ways are enrichment toward depth_2"
+    review_triggers:
+      - on_complete: [P1-M06]
+        reason: "RSC will try to pretend client state architecture stopped mattering"
+    stuck_fallbacks:
+      - if: "Treats server cache, URL, and client memory as one 'store'"
+        goto: S1-04
+        note: "Needs request/response and caching semantics, not another React pattern"
+      - if: "Picks context vs store from folklore about re-renders, no numbers"
+        goto: P1-M03
+        note: "Cost model first, then architecture"
+    micro_sitting_tasks:
+      - "From memory: list every piece of state in the study app and where it lives"
+      - "One drill: 'is this derived?' for 8 values from NOTES.md — no editor"
+      - "Write three sentences: what breaks if I delete the global store"
+
+  - id: P1-M05
+    title: "Concurrent React: lanes, Suspense, transitions, tearing"
+    phase: 1
+    track: primary
+    effort_hours: [30, 45]
+    requires: [P1-M01@depth_2_solid]
+    unlocks: [P1-M06@enriched]
+    entry_criteria:
+      - Event-loop diagram from P1-M01 can be redrawn without notes
+      - Have used Suspense or startTransition at least once, even if cargo-culted
+    exit_criteria:
+      depth_1_working:
+        - Use startTransition for a real slow state update; explain what stayed urgent
+        - Explain Suspense as "a component may not be ready", not as a spinner component
+        - Reproduce tearing *or* write why this app cannot tear
+      depth_2_solid:
+        - Diagram lanes / priority at a cartoon-Scheduler level
+        - "useDeferredValue vs startTransition: pick with a reason you can defend"
+        - No accidental tearing in a concurrent-features slice of the study app
+      depth_3_deep:
+        - Read a slice of Scheduler or the lane model in React source
+        - Explain time-slicing vs the browser's event loop without mixing the two
+    resources:
+      essential:
+        - "React docs: startTransition, useDeferredValue, Suspense (current major)"
+        - "Dan Abramov: offscreen/lanes mental model (or current equivalent)"
+      optional:
+        - P1-M02 work loop (enrichment — do not block this node on mini-React)
+        - "React source: Scheduler, ReactFiberLane"
+    breakpoints:
+      - after: "transition + Suspense explanation in my own words, with one demo"
+        note: "depth_1. Lanes diagram can wait."
+    review_triggers:
+      - on_complete: [P1-M06]
+        reason: "RSC/SSR Suspense is a different constraint with the same name"
+    stuck_fallbacks:
+      - if: "Can't picture an interruptible work loop or 'lanes'"
+        goto: P1-M02
+        note: "Building the loop is the missing picture; this was enrichment, now it's blocking"
+      - if: "Still can't place Scheduler on the event-loop diagram"
+        goto: P1-M01
+        note: "depth_2 on M01 was the require; if it's gone, redo M01 not M05"
+    micro_sitting_tasks:
+      - "Redraw lanes/urgent-vs-transition from memory; compare to NOTES.md"
+      - "5 true/false: 'this update should be a transition'"
+      - "Write why tearing is possible with useSyncExternalStore and not with useState"
+
+  - id: P1-M06
+    title: RSC and the framework layer
+    phase: 1
+    track: primary
+    effort_hours: [35, 50]
+    requires: [P1-M01@depth_1_working]
+    unlocks: [P1-M08@enriched]
+    entry_criteria:
+      - Can run a Next.js (or equivalent RSC) app locally
+      - Know what a cookie and a cache-control header are, even if fuzzily
+    exit_criteria:
+      depth_1_working:
+        - Draw the server/client boundary for one route; mark what serialises
+        - "Move one component across the boundary on purpose and explain the failure you hit (or why it didn't fail)"
+        - State what the framework is doing that React core is not
+      depth_2_solid:
+        - "Caching: what is cached, the key, and how a user-specific bit must not leak"
+        - "Streaming / Suspense on the server: one measured waterfall you removed"
+        - "Client island: why it exists, what it costs"
+      depth_3_deep:
+        - Flight / payload shape at a "I could debug a bad serialise" level
+        - Compare two frameworks' server-component models without fanboying
+    resources:
+      essential:
+        - Official RSC docs for the framework you actually use
+        - HTTP caching primer only if S1-04 not yet done (do not require S1-04)
+      optional:
+        - React Flight notes / RFCs
+    breakpoints:
+      - after: "boundary diagram + one component moved"
+        note: "depth_1. Caching policy is the expensive half."
+    review_triggers:
+      - on_complete: [S1-04]
+        reason: "HTTP caching and cookies will rewrite the 'magic' parts of this node"
+    stuck_fallbacks:
+      - if: "Can't explain a cache leak or cookie/session without waving at 'the framework'"
+        goto: S1-04
+        note: "RSC is HTTP plus a serialisation boundary; networking was the hole"
+      - if: "Suspense on the server is indistinguishable from a client spinner"
+        goto: P1-M05
+        note: "Need the constraint model first"
+    micro_sitting_tasks:
+      - "From memory: redraw one route's server/client tree"
+      - "List 5 values and mark: serialisable to client or not — no docs"
+      - "Write the cache key for one page in one sentence"
+
+  - id: P1-M07
+    title: Testing React without waste
+    phase: 1
+    track: primary
+    effort_hours: [30, 40]
+    requires: []
+    unlocks: [A-06]
+    entry_criteria:
+      - Can write a React component with hooks unaided
+      - Have run a unit or component test at work at least once
+    exit_criteria:
+      depth_1_working:
+        - "For one feature: tests that fail when behaviour breaks and stay green when you rename an internal function"
+        - Delete or rewrite one test that was asserting implementation
+        - One async test you can explain in event-loop terms if it flakes
+      depth_2_solid:
+        - "Written policy: what is tested at component, integration, and e2e levels — and what is not tested"
+        - MSW (or equivalent) for one network-backed flow; no accidental real HTTP
+        - A11y at least as "user-facing name/role in queries", not a full audit
+      depth_3_deep:
+        - Trace a flake to a fake timer, a missed act, or a real race
+        - Contract or screenshot budget you could defend in CI
+    resources:
+      essential:
+        - Testing Library guiding principles
+        - Work app's existing test runner (do not switch stacks for this node)
+      optional:
+        - Kent C. Dodds testing trophy (as a foil, not scripture)
+    breakpoints:
+      - after: "implementation-detail test deleted; behaviour test in its place"
+        note: "depth_1 is in reach. Policy doc is depth_2."
+    review_triggers:
+      - on_complete: [A-06]
+        reason: "refactoring will punish tests that pinned structure"
+    stuck_fallbacks:
+      - if: "Async tests flake and I can't say whether the bug is the test or the event loop"
+        goto: P1-M01
+        note: "waitFor/fake timers are microtasks and macrotasks"
+      - if: "Cannot mock or reason about the network in tests"
+        goto: S1-04
+        note: "HTTP as a thing in the world, not a React testing problem"
+    micro_sitting_tasks:
+      - "Read one existing test from NOTES or work memory; write 'behaviour or implementation?'"
+      - "5 queries: getByRole vs getByTestId — which and why, no code"
+      - "Write the test-policy bullets from memory; compare to NOTES.md"
+
+  - id: P1-M08
+    title: "Performance: bundles, Web Vitals, memory, CI budgets"
+    phase: 1
+    track: primary
+    effort_hours: [35, 50]
+    requires: [P1-M03@depth_1_working, S1-04@depth_1_working]
+    unlocks: []
+    entry_criteria:
+      - Can run a production build locally
+      - Have Chrome Performance / Lighthouse (or equivalent) installed
+    exit_criteria:
+      depth_1_working:
+        - "Field or lab Web Vitals for one route; name the dominant constraint (TTFB, JS parse, render, images) with evidence"
+        - One change that moved a vital, measured, not "should help"
+        - "Bundle: one split or deletion with a size delta"
+      depth_2_solid:
+        - CI budget that fails the build on a regression you define
+        - "Memory: one leak or retained-object hunt (heap snapshot) with a conclusion"
+        - Distinguish load performance from runtime render cost (M03) in writing
+      depth_3_deep:
+        - INP/input delay attributed to a handler vs a long task vs layout
+        - Source maps + RUM: a real field stack you can read
+    resources:
+      essential:
+        - web.dev Web Vitals (current metrics — these have changed)
+        - Browser Performance + Memory panels
+      optional:
+        - Work RUM, if any
+        - S1-07 (enrichment: OTel/RUM as a system)
+    breakpoints:
+      - after: "dominant constraint named and one measured fix"
+        note: "depth_1. CI budgets and heap snapshots are the rest."
+    review_triggers:
+      - on_complete: [S1-07]
+        reason: "RUM and source maps will make lab-only vitals look naive"
+    stuck_fallbacks:
+      - if: "Optimising JS while the trace says layout, image, or TTFB"
+        goto: S-99-browser-rendering
+        note: "Need paint/layout vs JS, even though S1-04 is already required"
+      - if: "Can't read a waterfall or cache headers on the document request"
+        goto: S1-04
+        note: "HTTP was required at depth_1; redo it, don't guess at LCP"
+    micro_sitting_tasks:
+      - "From memory: current Web Vitals names and what each measures"
+      - "Read one NOTES.md number (LCP/INP/bundle kB) and write what it does not tell you"
+      - "5 yes/no: 'this is a load problem or a runtime render problem'"
+
+  - id: P1-M09
+    title: Component API design - 6 headless components vs Radix
+    phase: 1
+    track: primary
+    effort_hours: [45, 65]
+    requires: [P1-M01@depth_1_working]
+    unlocks: []
+    entry_criteria:
+      - Can ship a compound component with context without a tutorial
+      - Will critique Radix (or Headless UI) source, not only the docs
+    exit_criteria:
+      depth_1_working:
+        - Two headless components (e.g. Toggle + Dialog or Tabs + Listbox)
+          with documented API, keyboard, and focus behaviour
+        - Written critique of the equivalent Radix API: one thing to copy,
+          one thing you refuse
+        - No "div soup": name, role, and focus are deliberate
+      depth_2_solid:
+        - Six components vs Radix, same critique format
+        - State owned by the consumer vs the component: a rule you can defend
+        - Types: if you cannot read Radix's generics, that is a go-to S1-06,
+          not a pass on depth_2
+      depth_3_deep:
+        - Presence/collection pattern (or equivalent) implemented, not just named
+        - Account for divergences from Radix (a11y, SSR, controlled/uncontrolled)
+    resources:
+      essential:
+        - Radix Primitives source for the six you pick
+        - WAI-ARIA APG for those patterns
+      optional:
+        - S1-06 TypeScript (enrichment until types actually block you)
+        - A-01 after you notice yourself inventing a pattern per component
+    breakpoints:
+      - after: "two components + Radix critique"
+        note: "depth_1 and a valid capstone slice. Do not owe six to move on."
+    review_triggers:
+      - on_complete: [A-01]
+        reason: "API design is where GoF gets laundered into React"
+    stuck_fallbacks:
+      - if: "Can't make keyboard/focus behaviour match APG and don't know why"
+        goto: S-99-a11y
+        note: "Headless without name/role/value and focus is a styled div"
+      - if: "Blocked on reading Radix's type gymnastics, not on the runtime API"
+        goto: S1-06
+        note: "TS was enrichment; now it's the blocker"
+      - if: "Every component sprouts a new 'pattern' and I can't say the cost"
+        goto: A-01
+        note: "Need when-not-to-use before more API surface"
+    micro_sitting_tasks:
+      - "From memory: list the public props of one component; compare to the implementation"
+      - "APG drill: tab sequence for Dialog or Tabs, no docs"
+      - "Write one sentence: what the consumer owns vs what the component owns"
+
+  # -------------------------------------------------------------
+  # Remedial — invented because Phase 1 fallbacks had nowhere to go
+  # -------------------------------------------------------------
+
+  - id: S-99-js-prerequisites
+    title: "JS prerequisites: scope, hoisting, this, prototypes"
+    phase: 0
+    track: secondary
+    effort_hours: [8, 15]
+    requires: []
+    unlocks: [P1-M01@enriched]
+    entry_criteria:
+      - Can write functions, objects, and arrays unaided
+    exit_criteria:
+      depth_1_working:
+        - 7/10 drills on lexical scope, hoisting, and closure capture
+        - Explain `this` as a call-site rule, not as 'the object above'
+      depth_2_solid:
+        - 9/10 including prototype chain vs own properties
+        - Draw a scope chain for a nested function from memory
+      depth_3_deep:
+        - Explain TDZ and `const` in spec terms
+    resources:
+      essential:
+        - "You Don't Know JS: Scope & Closures"
+      optional:
+        - MDN working with objects
+    breakpoints:
+      - after: "scope + closure drills at 7/10"
+        note: "Return to P1-M01. Prototypes can wait."
+    review_triggers: []
+    stuck_fallbacks:
+      - if: "Lexical scope and this-binding still fused after 20 drills"
+        goto: P1-M01
+        note: "Stop multiplying substrate; the remaining hole is React-shaped or needs YDKJS offline"
+    micro_sitting_tasks:
+      - "5 scope/hoisting prediction drills"
+      - "Redraw one scope-chain diagram from memory"
+      - "Re-read one failed drill and write the rule you actually used"
+
+  - id: S-99-data-structures
+    title: "Trees, linked lists, and traversal"
+    phase: 0
+    track: secondary
+    effort_hours: [8, 15]
+    requires: []
+    unlocks: [P1-M02@enriched]
+    entry_criteria:
+      - Can write a recursive function that terminates
+    exit_criteria:
+      depth_1_working:
+        - Implement a linked list and a binary tree walk (DFS) without a tutorial open
+        - Explain parent/child/sibling pointers as data, not as 'React fibers'
+      depth_2_solid:
+        - Iterative walk with an explicit stack; say when recursion is lying to you
+        - Draw a fiber-like sibling chain for a three-element list from memory
+      depth_3_deep:
+        - Parent-pointer mutation during a walk without losing the tree
+    resources:
+      essential:
+        - Any CS drill set you will actually finish (not a MOOC)
+      optional:
+        - P1-M02 fiber notes *after* the list/tree drills, not before
+    breakpoints:
+      - after: "list + DFS tree walk working"
+        note: "Return to P1-M02. Iterative walk is depth_2."
+    review_triggers: []
+    stuck_fallbacks:
+      - if: "Recursion itself is the wall (base case / call stack)"
+        goto: S-99-js-prerequisites
+        note: "Functions and call stack, not data structures yet"
+    micro_sitting_tasks:
+      - "On paper: sibling-pointer diagram for 4 nodes; photograph into NOTES"
+      - "3 traces: what node is 'next' in a DFS vs sibling walk"
+      - "Re-read yesterday's list code and comment each pointer assignment"
+
+  - id: S-99-browser-rendering
+    title: "Browser rendering: style, layout, paint, composite"
+    phase: 0
+    track: secondary
+    effort_hours: [10, 18]
+    requires: []
+    unlocks: [P1-M03@enriched, P1-M08@enriched]
+    entry_criteria:
+      - Can open the Performance panel and record a second of interaction
+    exit_criteria:
+      depth_1_working:
+        - Name the pipeline stages in order and what forces a layout
+        - Read a Performance trace well enough to say 'this cost is JS' vs 'this is Recalc Style / Layout'
+      depth_2_solid:
+        - Trigger and measure a layout thrash (read then write then read)
+        - Layers / composite: one `transform` vs `top` comparison with numbers
+      depth_3_deep:
+        - Explain vsync / frame budget (16.7ms) vs INP without mixing them
+    resources:
+      essential:
+        - "Nolan Lawson: this browser rendering talk / article (or current equivalent)"
+        - Chrome Performance panel reference: the main-thread track names
+      optional:
+        - CSS containment docs
+    breakpoints:
+      - after: "trace read: JS vs layout vs paint identified once"
+        note: "Return to P1-M03 or P1-M08."
+    review_triggers: []
+    stuck_fallbacks:
+      - if: "Trace is unreadable because the JS is a mystery, not the pipeline"
+        goto: P1-M01
+        note: "Event loop / long tasks first"
+    micro_sitting_tasks:
+      - "From memory: list pipeline stages; compare to NOTES.md"
+      - "5 yes/no: 'this CSS change forces layout'"
+      - "Label one saved trace screenshot: JS / style / layout / paint"
+
+  - id: S-99-a11y
+    title: "Accessibility substrate: name, role, value, focus"
+    phase: 0
+    track: secondary
+    effort_hours: [10, 16]
+    requires: []
+    unlocks: [P1-M09@enriched]
+    entry_criteria:
+      - Can tab through a form in the browser
+    exit_criteria:
+      depth_1_working:
+        - For a native button, input, and link: name, role, value, and focus behaviour
+          without ARIA
+        - Explain when `aria-*` is compensating for a non-semantic element
+      depth_2_solid:
+        - Focus trap vs focus restore for a dialog, in your own words
+        - Keyboard map for one APG pattern (Tabs or Listbox) from memory
+      depth_3_deep:
+        - Screen-reader pass on one component; list what the a11y tree exposed vs DOM
+    resources:
+      essential:
+        - WAI-ARIA APG (the pattern you are building)
+        - Accessibility Tree in browser DevTools
+      optional:
+        - "Heydon Pickering: Inclusive Components" (as critique fodder)
+    breakpoints:
+      - after: "name/role/value on native controls + one ARIA anti-pattern named"
+        note: "Return to P1-M09."
+    review_triggers: []
+    stuck_fallbacks:
+      - if: "I can recite ARIA attributes but not what the keyboard is supposed to do"
+        goto: P1-M09
+        note: "Go back with APG open; this node is not a glossary"
+    micro_sitting_tasks:
+      - "From memory: name/role/value for button, checkbox, text input"
+      - "Tab-sequence drill for a dialog: 4 steps on paper"
+      - "One anti-pattern: `div role=button` — write what you now owe"
+
+  # -------------------------------------------------------------
+  # STUBS — secondary, then architecture (sign-off before expand)
+  # -------------------------------------------------------------
+
+  # Secondary track — spans phases 1-2
+  - { id: S1-01, title: "Linux fundamentals: processes, fds, signals, /proc", track: secondary, effort_hours: [25, 40], requires: [] }
+  - { id: S1-02, title: "Shell competence: bash properly, 5 tools I keep", track: secondary, effort_hours: [15, 25], requires: [S1-01@depth_1_working] }
+  - { id: S1-03, title: "Git internals: objects, refs, DAG; build a mini-git", track: secondary, effort_hours: [20, 30], requires: [] }
+  - { id: S1-04, title: "HTTP & networking: TCP, TLS 1.3, H2/H3, caching, CORS", track: secondary, effort_hours: [30, 45], requires: [] }
+  - { id: S1-05, title: "Docker: namespaces, cgroups, layers; toy runtime", track: secondary, effort_hours: [25, 40], requires: [S1-01@depth_2_solid] }
+  - { id: S1-06, title: "TypeScript: generics through conditional types", track: secondary, effort_hours: [30, 45], requires: [] }
+  - { id: S1-07, title: "Observability basics: structured logs, OTel, RUM, source maps", track: secondary, effort_hours: [20, 30], requires: [S1-04@depth_1_working] }
+  - { id: S1-08, title: "SQL fundamentals: modelling, indexes, query plans", track: secondary, effort_hours: [30, 45], requires: [] }
+
+  # Architecture track — continuous (stubs; A-03..A-10 added to match docs/02-PHASES.md)
+  - { id: A-01, title: GoF patterns - taught as when NOT to use them, track: architecture, effort_hours: [25, 40], requires: [] }
+  - { id: A-02, title: "SOLID, coupling/cohesion, dependency direction", track: architecture, effort_hours: [20, 30], requires: [A-01@depth_1_working] }
+  - { id: A-03, title: "DDD: bounded contexts and tactical patterns", track: architecture, effort_hours: [25, 40], requires: [] }
+  - { id: A-04, title: Application architecture, track: architecture, effort_hours: [20, 35], requires: [] }
+  - { id: A-05, title: Enterprise patterns (PoEAA-scale), track: architecture, effort_hours: [25, 40], requires: [] }
+  - { id: A-06, title: "Refactoring: smells to transformations, under test", track: architecture, effort_hours: [25, 40], requires: [A-01@depth_1_working, P1-M07@depth_1_working] }
+  - { id: A-07, title: Working with existing code, track: architecture, effort_hours: [10, 18], requires: [] }
+  - { id: A-08, title: Distributed-systems patterns, track: architecture, effort_hours: [25, 40], requires: [] }
+  - { id: A-09, title: ADR and C4 practice, track: architecture, effort_hours: [12, 20], requires: [] }
+  - { id: A-10, title: Anti-patterns, track: architecture, effort_hours: [15, 25], requires: [] }
+
+  # Phase 0 remnants
+  - { id: C-01, title: "Forge: quiz app with spaced repetition (quiz-only v1)", phase: 0, track: primary, effort_hours: [20, 35], requires: [] }
+
+gates:
+  - id: G-1
+    after_phase: 1
+    requires_all_at: depth_2_solid
+    nodes: [P1-M01, P1-M02, P1-M03, P1-M04, P1-M05, P1-M06, P1-M07, P1-M08, P1-M09]
+    unlocks_phase: 2
